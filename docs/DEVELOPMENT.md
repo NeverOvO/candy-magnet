@@ -26,7 +26,7 @@ bash scripts/build-macos.sh
 | `dist/糖果磁链.app` | 可运行的 macOS 应用 |
 | `dist/糖果磁链-macOS-arm64.zip` | Apple Silicon 应用压缩包 |
 
-脚本会更新上述生成目录。它不启动应用、不上传产物，也不执行自动测试。`.build/` 和 `dist/` 不纳入 Git。
+脚本会更新上述生成目录，并将项目许可证、第三方声明和 `licenses/` 中的许可文本复制到 App 的 `Contents/Resources`。它不启动应用、不上传产物，也不执行自动测试。`.build/` 和 `dist/` 不纳入 Git。
 
 ## 模块分工
 

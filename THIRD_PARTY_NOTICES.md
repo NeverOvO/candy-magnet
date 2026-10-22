@@ -6,7 +6,17 @@
 
 ## 图标字体
 
-`macos/Web/assets/zenicon.woff` 是项目内嵌的图标字体，由 `styles.css` 中的 `ZenIcon` 字体和图标码点引用。仓库当前没有附带该字体的独立许可文本，此文件不为该字体授予额外的使用或分发许可。
+`macos/Web/assets/zenicon.woff` 是项目内嵌的 ZenIcon 图标字体，由 `styles.css` 中的字体声明和图标码点引用。
+
+ZUI 的[官方图标文档](https://github.com/easysoft/zui/blob/zui1/docs/part/control-icon.md)说明其图标基于 Font Awesome 4.3 定制。Font Awesome 作者为 Dave Gandy；ZUI 项目版权声明为 `Copyright (C) 2014 cnezsoft.com`。本项目没有记录所引入字体的精确上游版本。
+
+字体保留 SIL Open Font License 1.1 授权，不适用本项目代码的 MIT 许可证。上游声明和许可全文随仓库提供：
+
+- [Font Awesome 上游许可声明](licenses/fontawesome-license.md)，来自 [ZUI 字体目录](https://github.com/easysoft/zui/blob/zui1/src/fonts/fontawesome-license.md)。
+- [SIL OFL 1.1 全文](licenses/OFL-1.1.txt)，来源为 [SIL 官方文本](https://openfontlicense.org/open-font-license-official-text/)。
+- [ZUI MIT 版权与许可声明](licenses/ZUI-MIT.txt)，来自 [ZUI 根目录](https://github.com/easysoft/zui/blob/zui1/LICENSE)。
+
+字体可随应用捆绑分发，分发时保留相应版权声明与 OFL 许可文本。构建脚本将本文件及全部许可文本复制到 App 的 `Contents/Resources` 中。
 
 ## 协议参考
 
@@ -20,4 +30,4 @@
 
 ## 仓库使用范围
 
-此仓库用于个人项目的私有保存与维护，未添加开源许可证。
+项目代码采用 [MIT 许可证](LICENSE)，版权持有人为 NeverOvO。第三方字体与系统组件不属于该许可证的重新授权范围，各自适用其原有许可。

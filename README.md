@@ -1,5 +1,7 @@
 # 糖果磁链
 
+项目代码采用 [MIT 许可证](LICENSE)。第三方资源的授权说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 糖果磁链是个人使用的 macOS 种子转磁力链接工具。选择或拖入 `.torrent` 文件，在本机生成磁力链接，并保存最近 7 天的转换历史。
 
 当前版本为 `2.1.1`，面向 Apple Silicon Mac，系统要求为 macOS 12.0 及更新版本。应用采用薄荷绿、蜜桃粉与淡紫色玻璃界面，主窗口默认大小为 620 × 740，可调整大小。标题区固定，文件列表与结果区域独立滚动。
@@ -38,7 +40,7 @@
 xcode-select --install
 ```
 
-取得私有仓库的访问权限并配置 GitHub 认证后，克隆源码：
+克隆公开仓库：
 
 ```sh
 git clone https://github.com/NeverOvO/candy-magnet.git
