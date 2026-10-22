@@ -7,6 +7,8 @@ build_dir="$project_root/.build/macos"
 output_dir="$project_root/dist"
 app_bundle="$output_dir/糖果磁链.app"
 architecture="$(uname -m)"
+version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$project_root/macos/Info.plist")"
+archive_path="$output_dir/CandyMagnet-$version-macOS-$architecture.zip"
 sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
 
 mkdir -p "$build_dir" "$app_bundle/Contents/MacOS" "$app_bundle/Contents/Resources/Web/assets"
@@ -19,7 +21,7 @@ xcrun --sdk macosx swiftc -O -swift-version 5 -parse-as-library \
 
 xcrun --sdk macosx swiftc -O -swift-version 5 -sdk "$sdk_path" \
   "$project_root/macos/GenerateIcon.swift" -o "$build_dir/generate-icon"
-"$build_dir/generate-icon" "$build_dir/CandyMagnet.iconset"
+"$build_dir/generate-icon" "$project_root/macos/Assets/CandyMagnet.png" "$build_dir/CandyMagnet.iconset"
 iconutil --convert icns "$build_dir/CandyMagnet.iconset" --output "$app_bundle/Contents/Resources/CandyMagnet.icns"
 
 cp "$project_root/macos/Info.plist" "$app_bundle/Contents/Info.plist"
@@ -41,6 +43,6 @@ xattr -dr com.apple.ResourceFork "$app_bundle" 2>/dev/null || true
 # Ad-hoc signing is part of producing a locally launchable Apple Silicon bundle.
 # No certificate, Apple account, notarization, or network request is involved.
 codesign --force --sign - "$app_bundle"
-ditto -c -k --sequesterRsrc --keepParent "$app_bundle" "$output_dir/糖果磁链-macOS-$architecture.zip"
+ditto -c -k --sequesterRsrc --keepParent "$app_bundle" "$archive_path"
 printf '\n已生成：%s\n' "$app_bundle"
-printf '压缩包：%s\n' "$output_dir/糖果磁链-macOS-$architecture.zip"
+printf '压缩包：%s\n' "$archive_path"

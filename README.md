@@ -1,10 +1,12 @@
 # 糖果磁链
 
+<img src="macos/Assets/CandyMagnet.png" width="128" alt="糖果磁链：糖果玻璃磁铁应用图标">
+
 项目代码采用 [MIT 许可证](LICENSE)。第三方资源的授权说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 糖果磁链是个人使用的 macOS 种子转磁力链接工具。选择或拖入 `.torrent` 文件，在本机生成磁力链接，并保存最近 7 天的转换历史。
 
-当前版本为 `2.1.1`，面向 Apple Silicon Mac，系统要求为 macOS 12.0 及更新版本。应用采用薄荷绿、蜜桃粉与淡紫色玻璃界面，主窗口默认大小为 620 × 740，可调整大小。标题区固定，文件列表与结果区域独立滚动。
+当前版本为 `2.2.0`（构建号 `5`），面向 Apple Silicon Mac，系统要求为 macOS 12.0 及更新版本。应用采用薄荷绿、蜜桃粉与淡紫色玻璃界面，主窗口默认大小为 620 × 740，可调整大小。标题区固定，文件列表与结果区域独立滚动。
 
 ## 功能
 
@@ -21,7 +23,9 @@
 
 ## 安装与使用
 
-构建后的应用位于 `dist/糖果磁链.app`。双击即可打开，也可以将它拖入“应用程序”文件夹后使用。关闭最后一个窗口时，应用退出。
+[下载 v2.2.0 · Apple Silicon](https://github.com/NeverOvO/candy-magnet/releases/download/v2.2.0/CandyMagnet-2.2.0-macOS-arm64.zip)，或打开 [v2.2.0 发布页面](https://github.com/NeverOvO/candy-magnet/releases/tag/v2.2.0)。压缩包适用于 arm64 架构的 Apple Silicon Mac，最低系统为 macOS 12.0。
+
+下载后解压 `CandyMagnet-2.2.0-macOS-arm64.zip`，将“糖果磁链.app”拖入“应用程序”文件夹，再双击打开。源码构建的应用位于 `dist/糖果磁链.app`，安装方式相同。关闭最后一个窗口时，应用退出。
 
 1. 点击“选择文件”或“选择文件夹”，也可把文件或文件夹拖入窗口。
 2. 设置是否包含名称、是否保留 Tracker，点击转换按钮。
@@ -53,17 +57,17 @@ cd candy-magnet
 bash scripts/build-macos.sh
 ```
 
-脚本使用系统 Swift 编译器与 AppKit、WebKit、Network、SQLite，生成图标、复制内嵌界面资源，完成本地签名并打包。构建过程不安装第三方依赖。
+脚本使用系统 Swift 编译器与 AppKit、WebKit、Network、SQLite，将图标源 PNG 转换为 macOS 图标尺寸，复制内嵌界面资源和许可文本，完成本地签名并打包。构建过程不安装第三方依赖。
 
 Apple Silicon 上的产物为：
 
 | 路径 | 内容 |
 | --- | --- |
 | `dist/糖果磁链.app` | 可直接打开的 macOS 应用 |
-| `dist/糖果磁链-macOS-arm64.zip` | 包含应用的分发压缩包 |
+| `dist/CandyMagnet-2.2.0-macOS-arm64.zip` | 包含应用的分发压缩包 |
 | `.build/macos/` | 构建过程使用的中间文件 |
 
-仓库保存源码与文档，`dist/` 中的应用和压缩包不提交到 Git。
+仓库保存源码、文档与图标源文件，`dist/` 中的应用和压缩包不提交到 Git。带版本号的应用压缩包通过 GitHub Releases 分发。
 
 ## 转换历史与数据保留
 
@@ -85,14 +89,16 @@ SQLite 在后台串行队列中读写，批量写入使用事务。保留期按�
 
 ## 更新应用
 
-退出糖果磁链，在源码目录获取更新并重新构建：
+退出糖果磁链，从 [GitHub Releases](https://github.com/NeverOvO/candy-magnet/releases) 下载新版压缩包，解压后用新的“糖果磁链.app”替换“应用程序”文件夹中的旧版本，再次打开。应用没有自动更新机制。
+
+使用源码构建时，在源码目录获取更新并重新构建：
 
 ```sh
 git pull --ff-only
 bash scripts/build-macos.sh
 ```
 
-使用新生成的 `dist/糖果磁链.app` 替换“应用程序”文件夹中的旧版本，再次打开。应用没有自动更新机制。
+使用新生成的 `dist/糖果磁链.app` 替换旧版本。
 
 更新时继续使用原有的 Application Support 数据目录，历史仍按 7 天规则清理。主窗口的文件队列和未保存的转换记录不会跨退出恢复；存在“重试保存历史”提示时，先完成保存再退出。
 
@@ -106,7 +112,9 @@ bash scripts/build-macos.sh
 | `macos/HistoryStore.swift` | SQLite 存储、批量写入、按时间分页与过期清理 |
 | `macos/LocalAssetServer.swift` | 供内嵌 WebKit 加载资源的本机服务 |
 | `macos/Info.plist` | 应用标识、版本与最低系统要求 |
-| `macos/GenerateIcon.swift` | 应用图标生成 |
+| `macos/Assets/CandyMagnet.png` | 糖果玻璃磁铁图标的源 PNG |
+| `macos/GenerateIcon.swift` | 使用 Swift / AppKit 将源 PNG 转换为各尺寸 iconset |
+| `design/app-icon/` | 图标画面方案与完整生成提示词 |
 | `macos/Web/index.html`、`styles.css` | 主窗口结构与糖果玻璃样式 |
 | `macos/Web/app.js` | 导入队列、目录遍历、分页、转换、复制与历史保存交互 |
 | `macos/Web/converter-worker.js` | 后台文件读取、指纹计算和种子解析 |
@@ -117,6 +125,12 @@ bash scripts/build-macos.sh
 | `scripts/build-macos.sh` | 编译、资源打包、本地签名与压缩 |
 
 前端入口由应用加载，修改后的资源通过构建脚本复制进 `.app`。开发模块和构建流程见 [开发说明](docs/DEVELOPMENT.md)，第三方资源信息见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+
+### 应用图标
+
+糖果玻璃磁铁图标由内置 imagegen 生成，源文件保存在 `macos/Assets/CandyMagnet.png`。构建时由 Swift / AppKit 转换尺寸，再通过系统 `iconutil` 生成 `.icns`。图标画面不由构建程序绘制。
+
+[图标方案](design/app-icon/outline.md)和[完整提示词](design/app-icon/prompts/01-scene-candy-magnet.md)随源码保存。
 
 ### 批量处理
 

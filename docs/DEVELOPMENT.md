@@ -18,13 +18,13 @@ xcode-select --install
 bash scripts/build-macos.sh
 ```
 
-脚本根据当前机器的 `uname -m` 选择目标架构，使用 Swift 优化编译生成可执行文件，再生成图标、复制界面资源、执行本地 ad-hoc 签名并打包 ZIP。当前提供的是 arm64 产物，脚本不生成 Universal Binary。
+脚本根据当前机器的 `uname -m` 选择目标架构，使用 Swift 优化编译生成可执行文件，再转换图标尺寸、复制界面资源和许可文本、执行本地 ad hoc 签名并打包 ZIP。当前提供的是 arm64 产物，脚本不生成 Universal Binary。
 
 | 路径 | 内容 |
 | --- | --- |
 | `.build/macos/` | 图标生成器、iconset 等中间文件 |
 | `dist/糖果磁链.app` | 可运行的 macOS 应用 |
-| `dist/糖果磁链-macOS-arm64.zip` | Apple Silicon 应用压缩包 |
+| `dist/CandyMagnet-2.2.0-macOS-arm64.zip` | Apple Silicon 应用压缩包 |
 
 脚本会更新上述生成目录，并将项目许可证、第三方声明和 `licenses/` 中的许可文本复制到 App 的 `Contents/Resources`。它不启动应用、不上传产物，也不执行自动测试。`.build/` 和 `dist/` 不纳入 Git。
 
@@ -35,7 +35,9 @@ bash scripts/build-macos.sh
 | `macos/CandyMagnet.swift` | 应用生命周期、主窗口、历史窗口、菜单、WKWebView 原生接口 |
 | `macos/LocalAssetServer.swift` | 通过本机动态端口向 WKWebView 提供白名单内的资源 |
 | `macos/HistoryStore.swift` | SQLite 初始化、批量写入、游标分页、七天清理和关闭 |
-| `macos/GenerateIcon.swift` | 生成应用图标资源 |
+| `macos/Assets/CandyMagnet.png` | 应用图标源 PNG |
+| `macos/GenerateIcon.swift` | 用 Swift / AppKit 将源 PNG 转换为各尺寸 iconset |
+| `design/app-icon/` | 图标方案与完整 imagegen 提示词 |
 | `macos/Info.plist` | 应用标识、版本、最低系统版本等元数据 |
 | `macos/Web/app.js` | 导入队列、去重、转换、结果展示、复制和历史保存重试 |
 | `macos/Web/torrent.js` | Bencode 解析、文件指纹与磁力链接生成 |
@@ -44,6 +46,14 @@ bash scripts/build-macos.sh
 | `macos/Web/history.js` | 历史记录分组、分页和复制 |
 | `macos/Web/index.html`、`styles.css` | 主窗口界面 |
 | `macos/Web/history.html`、`history.css` | 历史窗口界面 |
+
+## 图标资源
+
+应用图标是糖果玻璃风格的磁铁，源 PNG 位于 [`macos/Assets/CandyMagnet.png`](../macos/Assets/CandyMagnet.png)。画面使用内置 imagegen 生成，设计过程保存在[图标方案](../design/app-icon/outline.md)与[完整提示词](../design/app-icon/prompts/01-scene-candy-magnet.md)中。
+
+`macos/GenerateIcon.swift` 负责读取源 PNG，通过 AppKit 输出 macOS 所需的各尺寸 iconset；构建脚本随后调用系统 `iconutil` 生成 `CandyMagnet.icns`，写入 App 的 `Contents/Resources`。构建程序只转换尺寸与格式，不绘制图标画面，也不调用 imagegen。替换源 PNG 后，重新运行构建脚本即可更新应用图标。
+
+源 PNG、方案和提示词纳入 Git；iconset、`.icns` 与应用包由构建生成。
 
 ## 内嵌资源
 
@@ -94,8 +104,12 @@ ON conversion_history (converted_at DESC, id DESC);
 
 ## 版本更新
 
-应用版本在 `macos/Info.plist` 中维护：`CFBundleShortVersionString` 为版本号，`CFBundleVersion` 为构建号。功能变更写入根目录 `CHANGELOG.md`，界面和原生源码通过同一构建脚本打包。
+应用版本在 `macos/Info.plist` 中维护：`CFBundleShortVersionString` 为版本号，`CFBundleVersion` 为构建号。v2.2.0 对应版本号 `2.2.0`、构建号 `5`。变更写入根目录 `CHANGELOG.md`，界面、图标与原生源码通过同一构建脚本打包。
+
+GitHub 发布标签为 `v2.2.0`，发布说明保存在 [`docs/releases/v2.2.0.md`](releases/v2.2.0.md)。Apple Silicon 附件命名为 `CandyMagnet-2.2.0-macOS-arm64.zip`，随 [v2.2.0 Release](https://github.com/NeverOvO/candy-magnet/releases/tag/v2.2.0) 分发；二进制附件不进入源码提交。
+
+构建产物使用 ad hoc 本地签名，没有 Developer ID 签名，也未经过 Apple 公证。发布说明保留该签名状态、arm64 架构和 macOS 12.0 最低系统要求。
 
 更新时退出运行中的应用，再替换 `.app`。历史目录位于用户的 Application Support 中，独立于应用包；替换应用包不会删除历史记录。
 
-仓库保留源代码、文档与必要的字体资源，不提交构建产物、签名材料、种子或历史数据库。项目未配置自动构建或自动测试工作流。
+仓库保留源代码、文档、图标源 PNG 与必要的字体资源，不提交构建产物、签名材料、种子或历史数据库。项目未配置自动构建或自动测试工作流。
