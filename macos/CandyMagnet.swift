@@ -215,8 +215,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         case "history.append":
             guard !terminating, let historyStore else { replyHandler(nil, "历史记录暂时无法保存"); return }
             do {
-                let records = try parseRecords(body["records"])
-                historyStore.append(records) { result in
+                let batch = try parseBatch(body["batch"])
+                let records = try parseRecords(body["records"], batch: batch)
+                historyStore.append(records, batch: batch) { result in
                     DispatchQueue.main.async {
                         switch result {
                         case .success: replyHandler(["ok": true], nil)
@@ -229,12 +230,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             guard !terminating, let historyStore else { replyHandler(nil, "历史记录暂时无法读取"); return }
             do {
                 let cursor = try parseCursor(body["before"])
-                var limit = 100
-                if let value = body["limit"] {
-                    guard let number = integer(value), number >= 1 else { throw protocolError("分页数量必须为正整数") }
-                    limit = Int(min(number, 200))
-                }
+                let limit = try parseLimit(body["limit"], defaultValue: 50)
                 historyStore.list(before: cursor, limit: limit) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success(let page): replyHandler(page.dictionary, nil)
+                        case .failure(let error): replyHandler(nil, error.localizedDescription)
+                        }
+                    }
+                }
+            } catch { replyHandler(nil, error.localizedDescription) }
+        case "history.records":
+            guard !terminating, let historyStore else { replyHandler(nil, "批次链接暂时无法读取"); return }
+            do {
+                guard let batchId = identifier(body["batchId"]) else { throw protocolError("批次标识无效") }
+                let offset: Int64
+                if let value = body["offset"] {
+                    guard let number = integer(value), number >= 0, number <= 9007199254740791 else {
+                        throw protocolError("批次分页位置无效")
+                    }
+                    offset = number
+                } else { offset = 0 }
+                let limit = try parseLimit(body["limit"], defaultValue: 100)
+                historyStore.listRecords(batchId: batchId, offset: offset, limit: limit) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success(let page): replyHandler(page.dictionary, nil)
+                        case .failure(let error): replyHandler(nil, error.localizedDescription)
+                        }
+                    }
+                }
+            } catch { replyHandler(nil, error.localizedDescription) }
+        case "history.operations.append":
+            guard !terminating, let historyStore else { replyHandler(nil, "操作记录暂时无法保存"); return }
+            do {
+                let operations = try parseOperations(body["operations"])
+                historyStore.appendOperations(operations) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success: replyHandler(["ok": true], nil)
+                        case .failure(let error): replyHandler(nil, error.localizedDescription)
+                        }
+                    }
+                }
+            } catch { replyHandler(nil, error.localizedDescription) }
+        case "history.operations.list":
+            guard !terminating, let historyStore else { replyHandler(nil, "操作记录暂时无法读取"); return }
+            do {
+                let cursor = try parseCursor(body["before"])
+                let limit = try parseLimit(body["limit"], defaultValue: 100)
+                historyStore.listOperations(before: cursor, limit: limit) { result in
                     DispatchQueue.main.async {
                         switch result {
                         case .success(let page): replyHandler(page.dictionary, nil)
@@ -248,26 +293,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         }
     }
 
-    private func parseRecords(_ value: Any?) throws -> [ConversionRecord] {
+    private func parseBatch(_ value: Any?) throws -> ConversionBatch {
+        guard let row = value as? [String: Any], let id = identifier(row["id"]), id != HistoryStore.legacyBatchID,
+              let startedAt = integer(row["startedAt"]), startedAt > 0,
+              let completedAt = integer(row["completedAt"]), completedAt >= 0,
+              let totalFiles = integer(row["totalFiles"]), totalFiles >= 0,
+              let successCount = integer(row["successCount"]), successCount >= 0,
+              let failedCount = integer(row["failedCount"]), failedCount >= 0,
+              successCount + failedCount <= totalFiles,
+              let status = row["status"] as? String,
+              (status == "running" && completedAt == 0) || (status == "completed" && completedAt >= startedAt) else {
+            throw protocolError("转换批次字段格式无效，未写入该批记录")
+        }
+        return ConversionBatch(id: id, startedAt: startedAt, completedAt: completedAt, totalFiles: totalFiles,
+                               successCount: successCount, failedCount: failedCount, status: status)
+    }
+
+    private func parseRecords(_ value: Any?, batch: ConversionBatch) throws -> [ConversionRecord] {
         guard let rows = value as? [[String: Any]] else { throw protocolError("历史记录必须是记录数组") }
         return try rows.map { row in
-            guard let id = row["id"] as? String, !id.isEmpty, id.utf8.count <= 128, !id.contains("\0"),
+            guard let id = identifier(row["id"]),
                   let title = row["title"] as? String, !title.contains("\0"),
                   let magnet = row["magnet"] as? String, magnet.hasPrefix("magnet:?"), !magnet.contains("\0"),
-                  let convertedAt = integer(row["convertedAt"]), convertedAt >= 0 else {
+                  let convertedAt = integer(row["convertedAt"]), convertedAt > 0,
+                  let batchId = identifier(row["batchId"]), batchId == batch.id,
+                  let position = integer(row["position"]), position >= 0, position < batch.totalFiles else {
                 throw protocolError("历史记录字段格式无效，未写入该批记录")
             }
-            return ConversionRecord(id: id, title: title, magnet: magnet, convertedAt: convertedAt)
+            return ConversionRecord(id: id, title: title, magnet: magnet, convertedAt: convertedAt, batchId: batchId, position: position)
+        }
+    }
+
+    private func parseOperations(_ value: Any?) throws -> [HistoryOperation] {
+        guard let rows = value as? [[String: Any]] else { throw protocolError("操作记录必须是记录数组") }
+        return try rows.map { row in
+            guard let id = identifier(row["id"]), let action = identifier(row["action"]),
+                  let detail = row["detail"] as? String, !detail.contains("\0"), detail.utf8.count <= 8192,
+                  let count = integer(row["count"]), count >= 0,
+                  let createdAt = integer(row["createdAt"]), createdAt > 0,
+                  let success = row["success"] as? NSNumber, CFGetTypeID(success) == CFBooleanGetTypeID() else {
+                throw protocolError("操作记录字段格式无效，未写入该批操作")
+            }
+            let batchId: String?
+            if let value = row["batchId"], !(value is NSNull) {
+                guard let parsed = identifier(value) else { throw protocolError("操作记录所属批次无效") }
+                batchId = parsed
+            } else { batchId = nil }
+            return HistoryOperation(id: id, action: action, detail: detail, count: count,
+                                    createdAt: createdAt, success: success.boolValue, batchId: batchId)
         }
     }
 
     private func parseCursor(_ value: Any?) throws -> HistoryCursor? {
         guard let value, !(value is NSNull) else { return nil }
         guard let cursor = value as? [String: Any], let convertedAt = integer(cursor["convertedAt"]), convertedAt >= 0,
-              let id = cursor["id"] as? String, !id.isEmpty, id.utf8.count <= 128, !id.contains("\0") else {
+              let id = identifier(cursor["id"]) else {
             throw protocolError("历史分页游标格式无效")
         }
         return HistoryCursor(convertedAt: convertedAt, id: id)
+    }
+
+    private func parseLimit(_ value: Any?, defaultValue: Int) throws -> Int {
+        guard let value else { return defaultValue }
+        guard let number = integer(value), number >= 1 else { throw protocolError("分页数量必须为正整数") }
+        return Int(min(number, 200))
+    }
+
+    private func identifier(_ value: Any?) -> String? {
+        guard let value = value as? String, !value.isEmpty, value.utf8.count <= 128, !value.contains("\0") else { return nil }
+        return value
     }
 
     private func integer(_ value: Any?) -> Int64? {

@@ -24,7 +24,7 @@ bash scripts/build-macos.sh
 | --- | --- |
 | `.build/macos/` | 图标生成器、iconset 等中间文件 |
 | `dist/糖果磁链.app` | 可运行的 macOS 应用 |
-| `dist/CandyMagnet-2.2.2-macOS-arm64.zip` | Apple Silicon 应用压缩包 |
+| `dist/CandyMagnet-2.3.0-macOS-arm64.zip` | Apple Silicon 应用压缩包 |
 
 脚本会更新上述生成目录，并将项目许可证、第三方声明和 `licenses/` 中的许可文本复制到 App 的 `Contents/Resources`。它不启动应用、不上传产物，也不执行自动测试。`.build/` 和 `dist/` 不纳入 Git。
 
@@ -34,16 +34,16 @@ bash scripts/build-macos.sh
 | --- | --- |
 | `macos/CandyMagnet.swift` | 应用生命周期、主窗口、历史窗口、菜单、WKWebView 原生接口 |
 | `macos/LocalAssetServer.swift` | 通过本机动态端口向 WKWebView 提供白名单内的资源 |
-| `macos/HistoryStore.swift` | SQLite 初始化、批量写入、游标分页、七天清理和关闭 |
+| `macos/HistoryStore.swift` | SQLite 初始化与迁移、批次及操作记录的事务写入、分页、七天清理和关闭 |
 | `macos/Assets/CandyMagnet.png` | 应用图标源 PNG |
 | `macos/GenerateIcon.swift` | 用 Swift / AppKit 将源 PNG 转换为各尺寸 iconset |
 | `design/app-icon/` | 图标方案与完整 imagegen 提示词 |
 | `macos/Info.plist` | 应用标识、版本、最低系统版本等元数据 |
-| `macos/Web/app.js` | 导入队列、去重、转换、结果展示、复制和历史保存重试 |
+| `macos/Web/app.js` | 导入队列、去重、转换批次、结果展示、复制、操作记录和保存重试 |
 | `macos/Web/torrent.js` | Bencode 解析、文件指纹与磁力链接生成 |
 | `macos/Web/converter-worker.js` | 后台读取与解析文件 |
 | `macos/Web/history-store.js` | JavaScript 对原生历史接口的调用封装 |
-| `macos/Web/history.js` | 历史记录分组、分页和复制 |
+| `macos/Web/history.js` | 批次与操作记录切换、批次展开、分页、单条复制与日志保存 |
 | `macos/Web/index.html`、`styles.css` | 主窗口界面 |
 | `macos/Web/history.html`、`history.css` | 历史窗口界面 |
 
@@ -69,44 +69,54 @@ bash scripts/build-macos.sh
 | --- | --- | --- |
 | `copy` | `text` | `{ ok: true }` |
 | `history.open` | 无 | `{ ok: true }` |
-| `history.append` | `records` 数组 | `{ ok: true }` |
-| `history.list` | 可选 `before`、`limit` | `{ ok: true, records, nextCursor }` |
+| `history.append` | `records` 数组、`batch` | `{ ok: true }` |
+| `history.list` | 可选 `before`、`limit` | 批次列表 `batches` 与 `nextCursor` |
+| `history.records` | `batchId`，可选 `offset`、`limit` | 批次内记录 `records` 与 `nextOffset` |
+| `history.operations.append` | `operations` 数组 | `{ ok: true }` |
+| `history.operations.list` | 可选 `before`、`limit` | 操作列表 `operations` 与 `nextCursor` |
 
-历史记录字段为 `id`、`title`、`magnet`、`convertedAt`。`convertedAt` 使用 Unix 毫秒时间戳，分页游标包含 `convertedAt` 和 `id`。历史页面每次读取 100 条，原生接口每次最多返回 200 条。失败以 Promise 拒绝或 `ok` 状态反馈，界面保留可处理的错误提示。
+JavaScript 封装位于 `history-store.js`，分别提供 `appendHistory(records, batch)`、`listHistory(...)`、`listBatchRecords(...)`、`appendOperations(...)` 和 `listOperations(...)`。批次列表默认每页 50 批，批次内容默认每页 100 条，操作记录默认每页 100 条。
+
+批次使用开始时间 `startedAt`、完成时间 `completedAt` 和唯一标识，并保存文件数、成功数、失败数及状态。链接记录保留 `id`、`title`、`magnet`、`convertedAt`，通过批次标识和位置保持原顺序。时间使用 Unix 毫秒时间戳；批次和操作列表使用游标分页，批次内容使用偏移分页。失败以 Promise 拒绝或 `ok` 状态反馈，界面显示具体错误和重试入口。
 
 原生存储发生写入或过期清理时，向历史窗口发送 `history-updated` 事件。
 
 ## 转换与性能
 
-导入阶段由单个 Worker 串行读取文件，计算文件指纹并解析元数据，主界面保留转换所需的轻量结果。用户点击“开始转换”后生成磁力链接并保存历史。Worker 不可用时，使用同一解析函数回退处理。
+导入阶段由单个 Worker 串行读取文件，计算文件指纹并解析元数据，主界面保留转换所需的轻量结果。每次点击转换，包括单条重新转换，都创建独立批次，生成磁力链接并保存历史。Worker 不可用时，使用同一解析函数回退处理。
 
 文件队列每页展示 100 项，行节点按状态变化更新；分页不会限制队列总数。单个种子限制为 `500 * 1024` 字节，常量位于 `torrent.js`。
 
-历史写入使用批次，每批最多 50 条或约 256 KiB 字符量；这不限制导入或转换数量。重试沿用记录 UUID，SQLite 以主键处理重复写入。
+转换批次按用户操作划分，保存重试沿用批次、记录和操作的唯一标识。批次内记录按位置读取，分页不改变链接顺序，也不限制导入或转换数量。
+
+主窗口磁力链接面板和 `textarea` 随可用空间伸展。小窗口保留结果区域的最小高度，通过滚动展示超出的内容。
+
+## 操作记录
+
+转换、奇数行复制、偶数行复制、全部复制、单条复制、导入、清空列表、移除文件及名称和 Tracker 选项变更都会保存操作记录。历史窗口的单条复制使用相同记录流程。操作包含时间、数量、结果和详情，详情可包含文件名与选择的选项，不保存完整文件路径或任意系统剪贴板内容。
+
+只涉及一个已知批次时，操作可保存该批次标识；跨批次结果复制记录涉及的批次数，不关联某一个批次。复制成功与操作记录保存成功分别处理，日志保存失败时保留待保存记录和重试入口，重试不重新写入剪贴板。
 
 ## 历史数据库
 
-数据表为 `conversion_history`：
+| 数据表 | 字段与用途 |
+| --- | --- |
+| `conversion_batches` | `id`、`started_at`、`completed_at`、`total_files`、`success_count`、`failed_count`、`status`，保存一次转换的批次摘要 |
+| `batch_records` | `id`、`batch_id`、`position`、`title`、`magnet`、`converted_at`，保存批次中的链接与顺序 |
+| `operation_history` | `id`、`action`、`detail`、`item_count`、`created_at`、`success`、`batch_id`，保存操作及可选批次关联 |
+| `conversion_history` | 保留旧版逐文件记录的 `id`、`title`、`magnet`、`converted_at` |
 
-```sql
-CREATE TABLE conversion_history (
-  id TEXT PRIMARY KEY NOT NULL,
-  title TEXT NOT NULL,
-  magnet TEXT NOT NULL,
-  converted_at INTEGER NOT NULL
-) WITHOUT ROWID;
+应用打开数据库时创建新增表，保留旧表及原始记录。旧版记录通过虚拟集合 `legacy-unbatched-v1` 展示为“旧版记录（批次未知）”，标记 `legacy: true`，不根据时间推断原批次。集合摘要的时间取其中最新记录时间，各条记录仍保留原始转换时间。
 
-CREATE INDEX conversion_history_time
-ON conversion_history (converted_at DESC, id DESC);
-```
+数据库启用 WAL 模式，在后台串行队列中使用事务写入。记录标识和 `UNIQUE(batch_id, position)` 约束用于幂等保存，重试不重复插入。`batch_records` 通过外键随批次级联删除。
 
-数据库启用 WAL 模式，在后台串行队列中读写。列表使用时间与 ID 组成的游标分页。启动、读写和运行期间每小时的维护会删除超过七天的记录。退出时等待原生队列已经接收的操作完成。
+保留期为滚动的 `7 × 24` 小时。新批次按 `started_at` 整批清理；操作按 `created_at` 清理；旧版记录继续按原始 `converted_at` 逐条清理。启动、读写和运行期间每小时执行过期清理。退出时等待原生队列已经接收的操作完成。
 
 ## 版本更新
 
-应用版本在 `macos/Info.plist` 中维护：`CFBundleShortVersionString` 为版本号，`CFBundleVersion` 为构建号。v2.2.2 对应版本号 `2.2.2`、构建号 `7`。变更写入根目录 `CHANGELOG.md`，界面、图标与原生源码通过同一构建脚本打包。
+应用版本在 `macos/Info.plist` 中维护：`CFBundleShortVersionString` 为版本号，`CFBundleVersion` 为构建号。v2.3.0 对应版本号 `2.3.0`、构建号 `8`。变更写入根目录 `CHANGELOG.md`，界面、图标与原生源码通过同一构建脚本打包。
 
-GitHub 发布标签为 `v2.2.2`，发布说明保存在 [`docs/releases/v2.2.2.md`](releases/v2.2.2.md)。Apple Silicon 附件命名为 `CandyMagnet-2.2.2-macOS-arm64.zip`，随 [v2.2.2 Release](https://github.com/NeverOvO/candy-magnet/releases/tag/v2.2.2) 分发；二进制附件不进入源码提交。
+GitHub 发布标签为 `v2.3.0`，发布说明保存在 [`docs/releases/v2.3.0.md`](releases/v2.3.0.md)。Apple Silicon 附件命名为 `CandyMagnet-2.3.0-macOS-arm64.zip`，随 [v2.3.0 Release](https://github.com/NeverOvO/candy-magnet/releases/tag/v2.3.0) 分发；二进制附件不进入源码提交。
 
 构建产物使用 ad hoc 本地签名，没有 Developer ID 签名，也未经过 Apple 公证。发布说明保留该签名状态、arm64 架构和 macOS 12.0 最低系统要求。
 

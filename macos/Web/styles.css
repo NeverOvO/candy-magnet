@@ -79,6 +79,8 @@ button, label, h1, h2, .app-footer, .local-badge { -webkit-user-select: none; us
 }
 .app-titlebar { flex: 0 0 auto; padding: 10px 23px 19px; }
 .app-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 0 23px 15px; }
+.converter-content { display: flex; flex-direction: column; }
+.converter-content > * { flex-shrink: 0; }
 .desktop-title-space { height: 38px; flex: 0 0 38px; }
 
 .app-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
@@ -159,7 +161,8 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .4px; line-height: 1.4; 
 .pagination-button { padding: 3px 6px; border: 1px solid #ffffffbf; background: #ffffff70; color: #8d78a4; border-radius: 5px; font-size: 10px; }
 .pagination-button:hover:not(:disabled) { background: #fff; }
 
-.result-panel { padding: 13px 15px 11px; margin-top: 16px; border-radius: 17px; }
+.result-panel { display: flex; flex-direction: column; flex: 1 0 auto; padding: 13px 15px 11px; margin-top: 16px; border-radius: 17px; }
+.result-panel > * { flex-shrink: 0; }
 .result-heading { flex-wrap: wrap; gap: 8px; }
 .result-copy-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 .heading-with-count { display: flex; align-items: center; gap: 7px; }
@@ -167,7 +170,7 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .4px; line-height: 1.4; 
 .result-options { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; font-size: 10px; margin: 9px 0 10px; color: #806b8e; }
 .result-options label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
 input[type="checkbox"] { width: 12px; height: 12px; margin: 0; accent-color: #ad93cd; cursor: pointer; }
-#magnet { display: block; width: 100%; height: 102px; min-height: 80px; resize: vertical; padding: 10px 11px; border: 1px solid #fdfaff; border-radius: 9px; background: #ffffff70; color: #8d70ad; font: 10px/1.8 ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", monospace; overflow-wrap: anywhere; box-shadow: inset 0 1px 5px #af93b807; }
+#magnet { display: block; flex: 1 0 102px; width: 100%; min-width: 0; height: auto; min-height: 80px; resize: none; overflow: auto; padding: 10px 11px; border: 1px solid #fdfaff; border-radius: 9px; background: #ffffff70; color: #8d70ad; font: 10px/1.8 ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", monospace; overflow-wrap: anywhere; box-shadow: inset 0 1px 5px #af93b807; }
 #magnet::placeholder { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; color: #9a87a5; font-size: 11px; }
 #magnet:focus { outline: 2px solid #d3b8ed; outline-offset: 1px; }
 .result-footnote { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-top: 8px; color: #8a7595; font-size: 10px; }

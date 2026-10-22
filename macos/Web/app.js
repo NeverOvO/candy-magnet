@@ -1,5 +1,5 @@
 import { MAX_FILE_BYTES, analyzeTorrentFile, createMagnet } from './torrent.js';
-import { appendHistory, openHistory } from './history-store.js';
+import { appendHistory, appendOperations, openHistory } from './history-store.js';
 
 const $ = (id) => document.getElementById(id);
 const PAGE_SIZE = 100;
@@ -32,9 +32,11 @@ let batchSize = 0;
 let resultCount = 0;
 const visibleRows = new Map();
 const pendingHistory = [];
+const pendingOperations = [];
 const HISTORY_BATCH_SIZE = 50;
 const HISTORY_BATCH_CHARACTERS = 256 * 1024;
 let historySaving = false;
+let historySaveTask;
 let historySaveError = '';
 let worker;
 let workerUnavailable = false;
@@ -272,7 +274,7 @@ function renderVisibleRows(pageStart) {
 
 function renderHistoryControls() {
   if (!ui.retryHistorySave) return;
-  ui.retryHistorySave.hidden = !pendingHistory.length || !historySaveError;
+  ui.retryHistorySave.hidden = !pendingHistoryCount() || !historySaveError;
   ui.retryHistorySave.disabled = historySaving || Boolean(busy);
 }
 
@@ -303,7 +305,7 @@ function renderQueue() {
   if (ui.nextPage) ui.nextPage.disabled = currentPage >= pageCount - 1;
   if (ui.pageInfo) ui.pageInfo.textContent = `${pageStart + 1}–${Math.min(pageStart + PAGE_SIZE, queue.length)} / ${queue.length}`;
   if (ui.appState) {
-    ui.appState.textContent = busy === 'importing' ? '正在添加' : busy === 'converting' ? '正在转换' : historySaving ? '正在保存' : pendingHistory.length && historySaveError ? '历史未保存' : queue.length && !pending ? '转换完成' : '就绪';
+    ui.appState.textContent = busy === 'importing' ? '正在添加' : busy === 'converting' ? '正在转换' : historySaving ? '正在保存' : pendingHistoryCount() && historySaveError ? '历史未保存' : queue.length && !pending ? '转换完成' : '就绪';
     ui.appState.dataset.state = busy || historySaving ? 'busy' : 'ready';
   }
   renderHistoryControls();
@@ -320,6 +322,8 @@ async function importFiles(loadSelection) {
     return;
   }
   busy = 'importing';
+  const importedAt = Date.now();
+  let importError = '';
   ui.notice.hidden = true;
   renderQueue();
   let accepted = 0;
@@ -369,10 +373,15 @@ async function importFiles(loadSelection) {
       toast(`已跳过 ${repeated} 个重复文件`);
     }
   } catch (error) {
+    importError = error.message || '无法读取所选文件';
     showNotice(error.message || '无法读取所选文件，请重新选择。', 'warning');
   } finally {
     busy = '';
     renderQueue();
+    void recordOperation('import', {
+      count: accepted, createdAt: importedAt, success: !importError && failed === 0,
+      detail: `添加 ${accepted} 个种子，跳过 ${repeated} 个重复文件、${otherFiles} 个其他文件、${oversized} 个超限文件，读取失败 ${failed} 个${importError ? `；${importError}` : ''}`,
+    });
   }
 }
 
@@ -430,45 +439,64 @@ function historyRecordId() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function historyFailureMessage() {
-  return `${pendingHistory.length} 条转换记录未保存到历史：${historySaveError || '保存暂不可用'}。当前链接仍可复制，请在关闭窗口前重试保存历史。`;
+function pendingHistoryCount() {
+  return pendingHistory.length + pendingOperations.length;
 }
 
-async function savePendingHistory() {
-  if (historySaving) return false;
-  if (!pendingHistory.length) {
+function historyFailureMessage() {
+  return `${pendingHistoryCount()} 项批次或操作记录未保存：${historySaveError || '保存暂不可用'}。当前链接仍可复制，请在关闭窗口前重试保存历史。`;
+}
+
+function queueHistory(batch, records = []) {
+  pendingHistory.push({ batch: { ...batch }, records });
+}
+
+function queueOperation(action, { count = 0, detail = '', batchId = null, success = true, createdAt = Date.now() } = {}) {
+  pendingOperations.push({ id: historyRecordId(), action, count, detail, batchId, success, createdAt });
+}
+
+async function recordOperation(action, options) {
+  queueOperation(action, options);
+  if (!(await savePendingHistory())) showNotice(historyFailureMessage(), 'warning');
+}
+
+function savePendingHistory() {
+  if (historySaveTask) return historySaveTask;
+  if (!pendingHistoryCount()) {
     historySaveError = '';
     renderHistoryControls();
-    return true;
+    return Promise.resolve(true);
   }
   historySaving = true;
   renderQueue();
-  let confirmed = 0;
-  try {
-    while (confirmed < pendingHistory.length) {
-      const batch = [];
-      let characters = 0;
-      for (let index = confirmed; index < pendingHistory.length && batch.length < HISTORY_BATCH_SIZE; index += 1) {
-        const record = pendingHistory[index];
-        const estimatedSize = record.magnet.length + record.title.length + 160;
-        if (batch.length && characters + estimatedSize > HISTORY_BATCH_CHARACTERS) break;
-        batch.push(record);
-        characters += estimatedSize;
+  historySaveTask = (async () => {
+    try {
+      while (pendingHistory.length) {
+        const job = pendingHistory[0];
+        await appendHistory(job.records, job.batch);
+        pendingHistory.shift();
       }
-      await appendHistory(batch);
-      confirmed += batch.length;
+      while (pendingOperations.length) {
+        const operations = pendingOperations.slice(0, HISTORY_BATCH_SIZE);
+        await appendOperations(operations);
+        pendingOperations.splice(0, operations.length);
+      }
+      historySaveError = '';
+      return true;
+    } catch (error) {
+      historySaveError = String(error.message || '无法写入历史记录').slice(0, 240);
+      return false;
     }
-    historySaveError = '';
-    return true;
-  } catch (error) {
-    historySaveError = String(error.message || '无法写入历史记录').slice(0, 240);
-    return false;
-  } finally {
-    // Remove only confirmed records. Failed or uncertain transactions keep their UUIDs.
-    if (confirmed) pendingHistory.splice(0, confirmed);
+  })().then((saved) => {
+    // Failed or uncertain writes stay queued with the same IDs for a safe retry.
+    historySaveTask = undefined;
     historySaving = false;
     renderQueue();
-  }
+    // A copy can finish while the previous save promise is settling.
+    if (saved && pendingHistoryCount()) return savePendingHistory();
+    return saved;
+  });
+  return historySaveTask;
 }
 
 async function convert(ids) {
@@ -477,16 +505,22 @@ async function convert(ids) {
   if (!targets.length) return;
   const optionsSnapshot = magnetOptions();
   const historySeen = new Set();
+  const batch = {
+    id: historyRecordId(), startedAt: Date.now(), completedAt: 0,
+    totalFiles: targets.length, successCount: 0, failedCount: 0, status: 'running',
+  };
   busy = 'converting';
   completedInBatch = 0;
   batchSize = targets.length;
   ui.notice.hidden = true;
   ui.resultNote.textContent = '正在转换，完成后汇总全部链接';
   renderQueue();
-  let failed = 0;
-  let historyAttemptFailed = false;
+  let buffered = [];
   let bufferedCharacters = 0;
+  let historyAttemptFailed = false;
+  queueHistory(batch);
   try {
+    historyAttemptFailed = !(await savePendingHistory());
     for (const entry of targets) {
       const retry = entry.status === 'error';
       setStatus(entry, 'converting');
@@ -495,57 +529,92 @@ async function convert(ids) {
       try {
         if (retry || !entry.analysis) entry.analysis = await analyzeFile(entry.file);
         if (entry.analysis.parseError) throw new Error(entry.analysis.parseError);
-        entry.torrent = entry.analysis.torrent;
+        const torrent = entry.analysis.torrent;
+        const magnet = createMagnet(torrent, optionsSnapshot);
+        entry.torrent = torrent;
+        entry.batchId = batch.id;
         setStatus(entry, 'done');
-        const magnet = createMagnet(entry.torrent, optionsSnapshot);
-        const historyKey = `${entry.torrent.id}\u0000${magnet}`;
+        const historyKey = `${torrent.id}\u0000${magnet}`;
         if (!historySeen.has(historyKey)) {
           const record = {
-            id: historyRecordId(), title: entry.torrent.name,
-            magnet, convertedAt: Date.now(),
+            id: historyRecordId(), title: torrent.name, magnet, convertedAt: Date.now(),
+            batchId: batch.id, position: historySeen.size,
           };
           historySeen.add(historyKey);
-          pendingHistory.push(record);
-          bufferedCharacters += record.title.length + record.magnet.length + 160;
+          buffered.push(record);
+          bufferedCharacters += record.title.length + record.magnet.length + 200;
         }
+        batch.successCount += 1;
       } catch (error) {
         setStatus(entry, 'error');
         entry.error = error.message || '无法解析该种子，请重新选择文件。';
         entry.torrent = null;
-        failed += 1;
+        entry.batchId = null;
+        batch.failedCount += 1;
       }
       completedInBatch += 1;
       renderSoon();
-      if (!historyAttemptFailed && (pendingHistory.length >= HISTORY_BATCH_SIZE || bufferedCharacters >= HISTORY_BATCH_CHARACTERS)) {
-        historyAttemptFailed = !(await savePendingHistory());
+      if (buffered.length >= HISTORY_BATCH_SIZE || bufferedCharacters >= HISTORY_BATCH_CHARACTERS) {
+        queueHistory(batch, buffered);
+        buffered = [];
         bufferedCharacters = 0;
+        if (!historyAttemptFailed) historyAttemptFailed = !(await savePendingHistory());
       }
-      // Cached metadata makes conversion fast; yield periodically for window controls.
       if (completedInBatch % PAGE_SIZE === 0) await new Promise((resolve) => setTimeout(resolve, 0));
     }
+  } finally {
+    // A single click keeps the same batch ID across every storage chunk and retry.
+    batch.completedAt = Math.max(batch.startedAt, Date.now());
+    batch.status = 'completed';
+    queueHistory(batch, buffered);
+    queueOperation('convert', {
+      batchId: batch.id, count: historySeen.size,
+      success: batch.failedCount === 0 && completedInBatch === targets.length,
+      detail: `${ids ? '重新转换' : '转换'} ${targets.length} 个文件，成功 ${batch.successCount} 个，失败 ${batch.failedCount} 个，生成 ${historySeen.size} 条链接`,
+    });
     if (!historyAttemptFailed) await savePendingHistory();
     const warnings = [];
-    if (failed) warnings.push(`${failed} 个文件转换失败，请查看文件行内的原因。`);
-    if (pendingHistory.length && historySaveError) warnings.push(historyFailureMessage());
+    if (batch.failedCount) warnings.push(`${batch.failedCount} 个文件转换失败，请查看文件行内的原因。`);
+    if (pendingHistoryCount() && historySaveError) warnings.push(historyFailureMessage());
     if (warnings.length) showNotice(warnings.join(' '), 'warning');
-  } finally {
     busy = '';
     renderResults();
     renderQueue();
   }
 }
 
+function resultCopyContext(parity) {
+  const groups = new Map();
+  for (const entry of queue) {
+    if (entry.status !== 'done') continue;
+    if (!groups.has(entry.torrent.id)) groups.set(entry.torrent.id, new Set());
+    if (entry.batchId) groups.get(entry.torrent.id).add(entry.batchId);
+  }
+  const batchIds = new Set();
+  [...groups.values()].forEach((ids, index) => {
+    if (parity === undefined || index % 2 === parity) ids.forEach((id) => batchIds.add(id));
+  });
+  return {
+    batchId: batchIds.size === 1 ? [...batchIds][0] : null,
+    detail: batchIds.size > 1 ? `主窗口当前结果，涉及 ${batchIds.size} 个转换批次` : '主窗口当前结果',
+  };
+}
+
 function copyResultRows(parity) {
   if (!ui.result.value || busy === 'converting') return;
-  // Count complete links in the displayed result, starting with row 1.
   const lines = ui.result.value.split('\n').filter((_, index) => index % 2 === parity);
   if (!lines.length) return;
   const label = parity === 0 ? '奇数行' : '偶数行';
-  void copyText(lines.join('\n'), `已复制${label} ${lines.length} 条磁力链接`);
+  void copyText(lines.join('\n'), `已复制${label} ${lines.length} 条磁力链接`, {
+    action: parity === 0 ? 'copy_odd' : 'copy_even', count: lines.length, ...resultCopyContext(parity),
+  });
 }
 
-async function copyText(value, successMessage) {
+async function copyText(value, successMessage, operation) {
   if (!value) return;
+  const createdAt = Date.now();
+  let success = false;
+  let failure = '';
   try {
     const nativeClipboard = window.webkit?.messageHandlers?.desktop;
     if (typeof nativeClipboard?.postMessage !== 'function') {
@@ -553,9 +622,17 @@ async function copyText(value, successMessage) {
     }
     const reply = await nativeClipboard.postMessage({ action: 'copy', text: value });
     if (reply?.ok !== true) throw new Error(reply?.error || '未能写入剪贴板');
+    success = true;
     toast(successMessage);
   } catch (error) {
-    showNotice(`复制失败：${error.message || '未能写入剪贴板'}`, 'warning');
+    failure = String(error.message || '未能写入剪贴板');
+    showNotice(`复制失败：${failure}`, 'warning');
+  }
+  if (operation) {
+    const { action, ...details } = operation;
+    await recordOperation(action, { ...details, createdAt, success,
+      detail: failure ? `${details.detail || ''}；复制失败：${failure}` : details.detail || '',
+    });
   }
 }
 
@@ -606,6 +683,7 @@ document.addEventListener('drop', (event) => {
 ui.convert.addEventListener('click', () => { void convert(); });
 ui.clear.addEventListener('click', () => {
   if (busy) return;
+  const removedCount = queue.length;
   queue = [];
   fingerprints.clear();
   for (const status of Object.keys(counts)) counts[status] = 0;
@@ -614,6 +692,7 @@ ui.clear.addEventListener('click', () => {
   renderResults();
   renderQueue();
   ui.selectFiles.focus();
+  void recordOperation('clear', { count: removedCount, detail: `清空主窗口中的 ${removedCount} 个文件` });
 });
 ui.list.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-action]');
@@ -627,11 +706,19 @@ ui.list.addEventListener('click', (event) => {
     renderResults();
     renderQueue();
     ui.selectFiles.focus();
+    void recordOperation('remove', { count: 1, batchId: entry.batchId || null, detail: `移除文件：${entry.file.name}` });
   }
   if (button.dataset.action === 'retry') void convert([entry.id]);
-  if (button.dataset.action === 'copy' && entry.torrent) void copyText(createMagnet(entry.torrent, magnetOptions()), '已复制这条磁力链接');
+  if (button.dataset.action === 'copy' && entry.torrent) void copyText(createMagnet(entry.torrent, magnetOptions()), '已复制这条磁力链接', {
+    action: 'copy_single', count: 1, batchId: entry.batchId || null, detail: `文件列表：${entry.file.name}`,
+  });
 });
-ui.copy.addEventListener('click', () => { void copyText(ui.result.value, `已复制 ${resultCount} 条磁力链接`); });
+ui.copy.addEventListener('click', () => {
+  if (busy === 'converting') return;
+  void copyText(ui.result.value, `已复制 ${resultCount} 条磁力链接`, {
+    action: 'copy_all', count: resultCount, ...resultCopyContext(),
+  });
+});
 ui.copyOdd.addEventListener('click', () => copyResultRows(0));
 ui.copyEven.addEventListener('click', () => copyResultRows(1));
 ui.openHistory?.addEventListener('click', async () => {
@@ -645,7 +732,7 @@ ui.openHistory?.addEventListener('click', async () => {
   }
 });
 ui.retryHistorySave?.addEventListener('click', async () => {
-  if (busy || historySaving || !pendingHistory.length) return;
+  if (busy || historySaving || !pendingHistoryCount()) return;
   if (await savePendingHistory()) {
     ui.notice.hidden = true;
     toast('历史记录已保存');
@@ -653,8 +740,12 @@ ui.retryHistorySave?.addEventListener('click', async () => {
     showNotice(historyFailureMessage(), 'warning');
   }
 });
-ui.includeName.addEventListener('change', renderResults);
-ui.includeTrackers.addEventListener('change', renderResults);
+for (const [input, label] of [[ui.includeName, '包含文件名称'], [ui.includeTrackers, '保留 Tracker']]) {
+  input.addEventListener('change', () => {
+    renderResults();
+    void recordOperation('options', { detail: `${input.checked ? '开启' : '关闭'}“${label}”` });
+  });
+}
 ui.previousPage?.addEventListener('click', () => {
   currentPage = Math.max(0, currentPage - 1);
   renderQueue();

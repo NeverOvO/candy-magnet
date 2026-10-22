@@ -16,12 +16,21 @@
         <header class="app-header history-header">
           <div class="app-identity">
             <span class="app-mark" aria-hidden="true"><img src="/assets/app-icon.png" width="55" height="55" alt="" draggable="false"></span>
-            <div><h1>转换历史</h1><p>最近 7 天，按转换时间排列。</p></div>
+            <div><h1>转换历史</h1><p>每次转换独立归档，记录保留 7 天。</p></div>
           </div>
           <button id="refresh-history" class="button button-soft history-refresh" type="button"><i class="icon icon-refresh" aria-hidden="true"></i><span>刷新</span></button>
         </header>
+        <div class="history-views" role="group" aria-label="历史记录类型">
+          <button class="history-view is-active" id="view-batches" type="button" aria-pressed="true">转换批次</button>
+          <button class="history-view" id="view-operations" type="button" aria-pressed="false">操作记录</button>
+        </div>
       </div>
       <main class="app-content history-content" id="history-content" aria-label="转换历史记录">
+        <div class="history-error history-save-notice" id="operation-save-notice" role="status" hidden>
+          <i class="icon icon-warning-sign" aria-hidden="true"></i>
+          <p id="operation-save-message"></p>
+          <button id="retry-operation-save" class="button button-clear" type="button">重试保存</button>
+        </div>
         <div class="history-error" id="history-error" role="alert" hidden>
           <i class="icon icon-warning-sign" aria-hidden="true"></i>
           <p id="history-error-message"></p>
@@ -30,8 +39,8 @@
         <p class="history-loading" id="history-loading" role="status">正在读取历史记录…</p>
         <section class="history-empty glass" id="history-empty" hidden>
           <i class="icon icon-link" aria-hidden="true"></i>
-          <h2>还没有转换记录</h2>
-          <p>成功转换的链接会保存在这里，7 天后自动清理。</p>
+          <h2 id="history-empty-title">还没有转换记录</h2>
+          <p id="history-empty-message">每次点击转换会生成一条批次记录，展开后可查看磁力链接。</p>
         </section>
         <div id="history-list"></div>
       </main>

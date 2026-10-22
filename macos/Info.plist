@@ -8,8 +8,8 @@
   <key>CFBundleExecutable</key><string>CandyMagnet</string>
   <key>CFBundleIdentifier</key><string>com.local.candymagnet</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>2.2.2</string>
-  <key>CFBundleVersion</key><string>7</string>
+  <key>CFBundleShortVersionString</key><string>2.3.0</string>
+  <key>CFBundleVersion</key><string>8</string>
   <key>CFBundleIconFile</key><string>CandyMagnet</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
