@@ -84,8 +84,8 @@ button, label, h1, h2, .app-footer, .local-badge { -webkit-user-select: none; us
 .app-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .app-identity { display: flex; gap: 12px; align-items: center; }
-.app-mark { display: grid; place-items: center; width: 45px; height: 45px; flex: 0 0 45px; border: 1px solid #fffc; border-radius: 15px; color: #8e65c8; background: linear-gradient(145deg, #ffffffcf, #f7e5ffc4 55%, #ecd8f3cf); box-shadow: inset 0 1px 2px #fff, inset 0 -2px 5px #c4a4de21, 0 5px 12px #a38ab222; }
-.app-mark .icon { font-size: 27px; transform: rotate(-10deg); }
+.app-mark { position: relative; width: 45px; height: 45px; flex: 0 0 45px; }
+.app-mark img { position: absolute; inset: -5px; display: block; width: 55px; height: 55px; max-width: none; object-fit: contain; }
 h1 { font-size: 23px; font-weight: 650; letter-spacing: .4px; line-height: 1.4; }
 .app-identity p { margin-top: 2px; font-size: 11px; color: #8d819b; letter-spacing: .2px; }
 .local-badge { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; padding: 5px 9px; border: 1px solid #ffffffb3; border-radius: 20px; background: #ffffff52; color: #758a87; font-size: 10px; }

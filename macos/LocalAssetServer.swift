@@ -20,6 +20,7 @@ final class LocalAssetServer {
         "/history.css": ("history.css", "text/css; charset=utf-8"),
         "/history.js": ("history.js", "text/javascript; charset=utf-8"),
         "/history-store.js": ("history-store.js", "text/javascript; charset=utf-8"),
+        "/assets/app-icon.png": ("assets/app-icon.png", "image/png"),
         "/assets/zenicon.woff": ("assets/zenicon.woff", "font/woff")
     ]
 

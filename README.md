@@ -6,7 +6,7 @@
 
 糖果磁链是个人使用的 macOS 种子转磁力链接工具。选择或拖入 `.torrent` 文件，在本机生成磁力链接，并保存最近 7 天的转换历史。
 
-当前版本为 `2.2.0`（构建号 `5`），面向 Apple Silicon Mac，系统要求为 macOS 12.0 及更新版本。应用采用薄荷绿、蜜桃粉与淡紫色玻璃界面，主窗口默认大小为 620 × 740，可调整大小。标题区固定，文件列表与结果区域独立滚动。
+当前版本为 `2.2.1`（构建号 `6`），面向 Apple Silicon Mac，系统要求为 macOS 12.0 及更新版本。应用采用薄荷绿、蜜桃粉与淡紫色玻璃界面，主窗口默认大小为 620 × 740，可调整大小。标题区固定，文件列表与结果区域独立滚动。
 
 ## 功能
 
@@ -23,9 +23,9 @@
 
 ## 安装与使用
 
-[下载 v2.2.0 · Apple Silicon](https://github.com/NeverOvO/candy-magnet/releases/download/v2.2.0/CandyMagnet-2.2.0-macOS-arm64.zip)，或打开 [v2.2.0 发布页面](https://github.com/NeverOvO/candy-magnet/releases/tag/v2.2.0)。压缩包适用于 arm64 架构的 Apple Silicon Mac，最低系统为 macOS 12.0。
+[下载 v2.2.1 · Apple Silicon](https://github.com/NeverOvO/candy-magnet/releases/download/v2.2.1/CandyMagnet-2.2.1-macOS-arm64.zip)，或打开 [v2.2.1 发布页面](https://github.com/NeverOvO/candy-magnet/releases/tag/v2.2.1)。压缩包适用于 arm64 架构的 Apple Silicon Mac，最低系统为 macOS 12.0。
 
-下载后解压 `CandyMagnet-2.2.0-macOS-arm64.zip`，将“糖果磁链.app”拖入“应用程序”文件夹，再双击打开。源码构建的应用位于 `dist/糖果磁链.app`，安装方式相同。关闭最后一个窗口时，应用退出。
+下载后解压 `CandyMagnet-2.2.1-macOS-arm64.zip`，将“糖果磁链.app”拖入“应用程序”文件夹，再双击打开。源码构建的应用位于 `dist/糖果磁链.app`，安装方式相同。关闭最后一个窗口时，应用退出。
 
 1. 点击“选择文件”或“选择文件夹”，也可把文件或文件夹拖入窗口。
 2. 设置是否包含名称、是否保留 Tracker，点击转换按钮。
@@ -64,7 +64,7 @@ Apple Silicon 上的产物为：
 | 路径 | 内容 |
 | --- | --- |
 | `dist/糖果磁链.app` | 可直接打开的 macOS 应用 |
-| `dist/CandyMagnet-2.2.0-macOS-arm64.zip` | 包含应用的分发压缩包 |
+| `dist/CandyMagnet-2.2.1-macOS-arm64.zip` | 包含应用的分发压缩包 |
 | `.build/macos/` | 构建过程使用的中间文件 |
 
 仓库保存源码、文档与图标源文件，`dist/` 中的应用和压缩包不提交到 Git。带版本号的应用压缩包通过 GitHub Releases 分发。
@@ -128,7 +128,7 @@ bash scripts/build-macos.sh
 
 ### 应用图标
 
-糖果玻璃磁铁图标由内置 imagegen 生成，源文件保存在 `macos/Assets/CandyMagnet.png`。构建时由 Swift / AppKit 转换尺寸，再通过系统 `iconutil` 生成 `.icns`。图标画面不由构建程序绘制。
+糖果玻璃磁铁图标由内置 imagegen 生成，源文件保存在 `macos/Assets/CandyMagnet.png`。构建时由 Swift / AppKit 转换尺寸，再通过系统 `iconutil` 生成 `.icns`，同时打包一份 256 像素的内嵌品牌图。主窗口和历史窗口的标题图标与 Dock、Finder 使用同一图标源文件。图标画面不由构建程序绘制。
 
 [图标方案](design/app-icon/outline.md)和[完整提示词](design/app-icon/prompts/01-scene-candy-magnet.md)随源码保存。
 

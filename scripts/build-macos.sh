@@ -29,6 +29,7 @@ for asset in index.html styles.css app.js torrent.js converter-worker.js history
   cp "$interface_dir/$asset" "$app_bundle/Contents/Resources/Web/$asset"
 done
 cp "$interface_dir/assets/zenicon.woff" "$app_bundle/Contents/Resources/Web/assets/zenicon.woff"
+cp "$build_dir/CandyMagnet.iconset/icon_128x128@2x.png" "$app_bundle/Contents/Resources/Web/assets/app-icon.png"
 cp "$project_root/LICENSE" "$project_root/THIRD_PARTY_NOTICES.md" "$app_bundle/Contents/Resources/"
 mkdir -p "$app_bundle/Contents/Resources/licenses"
 cp "$project_root/licenses/"* "$app_bundle/Contents/Resources/licenses/"
