@@ -24,7 +24,7 @@ bash scripts/build-macos.sh
 | --- | --- |
 | `.build/macos/` | 图标生成器、iconset 等中间文件 |
 | `dist/糖果磁链.app` | 可运行的 macOS 应用 |
-| `dist/CandyMagnet-2.2.0-macOS-arm64.zip` | Apple Silicon 应用压缩包 |
+| `dist/CandyMagnet-2.2.2-macOS-arm64.zip` | Apple Silicon 应用压缩包 |
 
 脚本会更新上述生成目录，并将项目许可证、第三方声明和 `licenses/` 中的许可文本复制到 App 的 `Contents/Resources`。它不启动应用、不上传产物，也不执行自动测试。`.build/` 和 `dist/` 不纳入 Git。
 
@@ -104,9 +104,9 @@ ON conversion_history (converted_at DESC, id DESC);
 
 ## 版本更新
 
-应用版本在 `macos/Info.plist` 中维护：`CFBundleShortVersionString` 为版本号，`CFBundleVersion` 为构建号。v2.2.0 对应版本号 `2.2.0`、构建号 `5`。变更写入根目录 `CHANGELOG.md`，界面、图标与原生源码通过同一构建脚本打包。
+应用版本在 `macos/Info.plist` 中维护：`CFBundleShortVersionString` 为版本号，`CFBundleVersion` 为构建号。v2.2.2 对应版本号 `2.2.2`、构建号 `7`。变更写入根目录 `CHANGELOG.md`，界面、图标与原生源码通过同一构建脚本打包。
 
-GitHub 发布标签为 `v2.2.0`，发布说明保存在 [`docs/releases/v2.2.0.md`](releases/v2.2.0.md)。Apple Silicon 附件命名为 `CandyMagnet-2.2.0-macOS-arm64.zip`，随 [v2.2.0 Release](https://github.com/NeverOvO/candy-magnet/releases/tag/v2.2.0) 分发；二进制附件不进入源码提交。
+GitHub 发布标签为 `v2.2.2`，发布说明保存在 [`docs/releases/v2.2.2.md`](releases/v2.2.2.md)。Apple Silicon 附件命名为 `CandyMagnet-2.2.2-macOS-arm64.zip`，随 [v2.2.2 Release](https://github.com/NeverOvO/candy-magnet/releases/tag/v2.2.2) 分发；二进制附件不进入源码提交。
 
 构建产物使用 ad hoc 本地签名，没有 Developer ID 签名，也未经过 Apple 公证。发布说明保留该签名状态、arm64 架构和 macOS 12.0 最低系统要求。
 

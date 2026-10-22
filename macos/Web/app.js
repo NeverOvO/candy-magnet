@@ -9,7 +9,8 @@ const ui = {
   dropZone: $('drop-zone'), dropTitle: $('drop-title'),
   list: $('file-list'), convert: $('convert'), clear: $('clear'),
   summary: $('queue-summary'), result: $('magnet'), count: $('result-count'),
-  copy: $('copy'), includeName: $('include-name'), includeTrackers: $('include-trackers'),
+  copy: $('copy'), copyOdd: $('copy-odd'), copyEven: $('copy-even'),
+  includeName: $('include-name'), includeTrackers: $('include-trackers'),
   resultNote: $('result-note'), characterCount: $('character-count'),
   notice: $('notice'), noticeText: $('notice-text'), toast: $('toast'),
   pagination: $('queue-pagination'), previousPage: $('previous-page'),
@@ -154,13 +155,20 @@ function collectResults() {
   return { torrents: [...torrents.values()], duplicates: counts.done - torrents.size };
 }
 
+function updateCopyButtons() {
+  const disabled = !ui.result.value || busy === 'converting';
+  ui.copy.disabled = disabled;
+  ui.copyOdd.disabled = disabled;
+  ui.copyEven.disabled = disabled || resultCount < 2;
+}
+
 function renderResults() {
   const { torrents, duplicates } = collectResults();
   const value = torrents.map((torrent) => createMagnet(torrent, magnetOptions())).join('\n');
   resultCount = torrents.length;
   ui.result.value = value;
   ui.count.textContent = `${resultCount} 条`;
-  ui.copy.disabled = !value || busy === 'converting';
+  updateCopyButtons();
   ui.characterCount.hidden = !value;
   ui.characterCount.textContent = `${value.length.toLocaleString('zh-CN')} 字符`;
   if (resultCount) {
@@ -280,7 +288,7 @@ function renderQueue() {
   ui.selectFolder.disabled = Boolean(busy);
   ui.convert.disabled = Boolean(busy) || historySaving || !pending;
   ui.clear.disabled = Boolean(busy) || queue.length === 0;
-  ui.copy.disabled = !ui.result.value || busy === 'converting';
+  updateCopyButtons();
   ui.includeName.disabled = busy === 'converting';
   ui.includeTrackers.disabled = busy === 'converting';
   ui.dropZone.setAttribute('aria-busy', String(busy === 'importing'));
@@ -527,6 +535,15 @@ async function convert(ids) {
   }
 }
 
+function copyResultRows(parity) {
+  if (!ui.result.value || busy === 'converting') return;
+  // Count complete links in the displayed result, starting with row 1.
+  const lines = ui.result.value.split('\n').filter((_, index) => index % 2 === parity);
+  if (!lines.length) return;
+  const label = parity === 0 ? '奇数行' : '偶数行';
+  void copyText(lines.join('\n'), `已复制${label} ${lines.length} 条磁力链接`);
+}
+
 async function copyText(value, successMessage) {
   if (!value) return;
   try {
@@ -615,6 +632,8 @@ ui.list.addEventListener('click', (event) => {
   if (button.dataset.action === 'copy' && entry.torrent) void copyText(createMagnet(entry.torrent, magnetOptions()), '已复制这条磁力链接');
 });
 ui.copy.addEventListener('click', () => { void copyText(ui.result.value, `已复制 ${resultCount} 条磁力链接`); });
+ui.copyOdd.addEventListener('click', () => copyResultRows(0));
+ui.copyEven.addEventListener('click', () => copyResultRows(1));
 ui.openHistory?.addEventListener('click', async () => {
   ui.openHistory.disabled = true;
   try {

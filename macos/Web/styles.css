@@ -160,6 +160,8 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .4px; line-height: 1.4; 
 .pagination-button:hover:not(:disabled) { background: #fff; }
 
 .result-panel { padding: 13px 15px 11px; margin-top: 16px; border-radius: 17px; }
+.result-heading { flex-wrap: wrap; gap: 8px; }
+.result-copy-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 .heading-with-count { display: flex; align-items: center; gap: 7px; }
 .result-count { font-size: 10px; color: #856990; background: #ede0f473; padding: 1px 6px; border-radius: 8px; font-variant-numeric: tabular-nums; }
 .result-options { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; font-size: 10px; margin: 9px 0 10px; color: #806b8e; }
