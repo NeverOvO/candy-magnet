@@ -1,0 +1,37 @@
+# macOS metadata
+.DS_Store
+._*
+__MACOSX/
+
+# Generated applications and build intermediates
+/.build/
+/dist/
+*.app/
+*.dSYM/
+
+# Local editor state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local configuration and signing material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.mobileprovision
+*.provisionprofile
+
+# Personal input, history, and runtime data
+*.torrent
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.log

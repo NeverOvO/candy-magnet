@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>糖果磁链</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div class="app-window">
+      <div class="desktop-title-space" aria-hidden="true"></div>
+      <div class="app-titlebar">
+        <header class="app-header">
+          <div class="app-identity">
+            <span class="app-mark"><i class="icon icon-link" aria-hidden="true"></i></span>
+            <div><h1>糖果磁链</h1><p>让种子，变成一条链接。</p></div>
+          </div>
+          <div class="header-actions">
+            <span class="local-badge"><i class="icon icon-shield" aria-hidden="true"></i> 本机处理</span>
+            <button class="button history-button" id="open-history" type="button" aria-haspopup="dialog">历史记录</button>
+          </div>
+        </header>
+      </div>
+      <main class="app-content">
+        <section class="drop-zone glass" id="drop-zone" aria-label="添加种子文件">
+          <div class="drop-intro">
+            <span class="upload-mark"><i class="icon icon-cloud-upload" aria-hidden="true"></i></span>
+            <div><h2 id="drop-title">拖入种子，或整个文件夹</h2><p id="drop-hint">.torrent 格式 · 单个文件不超过 500 KB</p></div>
+          </div>
+          <div class="picker-buttons">
+            <button class="button button-soft" id="select-files" type="button"><i class="icon icon-plus" aria-hidden="true"></i> 选择文件</button>
+            <button class="button button-clear" id="select-folder" type="button"><i class="icon icon-folder-open" aria-hidden="true"></i> 选择文件夹</button>
+          </div>
+          <input id="file-input" type="file" accept=".torrent,application/x-bittorrent" multiple hidden>
+          <input id="folder-input" type="file" webkitdirectory multiple hidden>
+        </section>
+
+        <div class="notice" id="notice" role="status" aria-live="polite" hidden>
+          <i class="icon icon-info-sign" aria-hidden="true"></i>
+          <div id="notice-text"></div>
+          <button id="dismiss-notice" class="notice-close" type="button" aria-label="关闭提示">关闭</button>
+        </div>
+
+        <section class="queue-section" aria-labelledby="file-heading">
+          <div class="section-heading queue-heading">
+            <h2 id="file-heading">种子列表</h2>
+            <p id="queue-summary" class="queue-summary" aria-live="polite">已添加 0 个</p>
+          </div>
+          <div class="file-table-wrap glass">
+            <table class="file-table">
+              <caption class="sr-only">已添加的种子文件及转换状态</caption>
+              <thead><tr><th scope="col">文件名称</th><th scope="col" class="size-column">大小</th><th scope="col" class="status-column">状态 / 操作</th></tr></thead>
+              <tbody id="file-list"><tr class="empty-row"><td colspan="3">还没有种子，添加几个试试</td></tr></tbody>
+            </table>
+          </div>
+          <div id="queue-pagination" class="queue-pagination" hidden>
+            <button id="previous-page" class="pagination-button" type="button">上一页</button>
+            <span id="page-info"></span>
+            <button id="next-page" class="pagination-button" type="button">下一页</button>
+          </div>
+          <div class="queue-toolbar">
+            <button class="button button-primary" id="convert" type="button" disabled><i class="icon icon-refresh" aria-hidden="true"></i><span>开始转换</span></button>
+            <button class="button button-quiet" id="clear" type="button" disabled><i class="icon icon-trash" aria-hidden="true"></i> 清空列表</button>
+          </div>
+        </section>
+
+        <section class="result-panel glass" aria-labelledby="result-heading">
+          <div class="section-heading result-heading">
+            <div class="heading-with-count"><h2 id="result-heading">磁力链接</h2><span class="result-count" id="result-count">0 条</span></div>
+            <button class="button button-copy" id="copy" type="button" disabled><i class="icon icon-copy" aria-hidden="true"></i> 复制全部</button>
+          </div>
+          <div class="result-options">
+            <label><input type="checkbox" id="include-name" checked><span>包含文件名称</span></label>
+            <label><input type="checkbox" id="include-trackers"><span>保留 Tracker</span></label>
+          </div>
+          <label class="sr-only" for="magnet">生成的磁力链接，每行一条</label>
+          <textarea id="magnet" spellcheck="false" readonly rows="4" placeholder="转换好的链接，会出现在这里。"></textarea>
+          <div class="result-footnote"><span id="result-note">每行一条，可直接复制到下载工具。</span><span id="character-count" hidden></span></div>
+        </section>
+
+        <footer class="app-footer">
+          <span class="app-state"><span class="status-dot" aria-hidden="true"></span><span id="app-state">就绪</span></span>
+          <button id="retry-history-save" class="history-retry" type="button" hidden>重试保存历史</button>
+          <span>转换记录保留 7 天</span>
+        </footer>
+      </main>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

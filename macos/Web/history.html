@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>转换历史 · 糖果磁链</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/history.css">
+    <script type="module" src="/history.js"></script>
+  </head>
+  <body>
+    <div class="app-window history-window">
+      <div class="desktop-title-space" aria-hidden="true"></div>
+      <div class="app-titlebar">
+        <header class="app-header history-header">
+          <div class="app-identity">
+            <span class="app-mark"><i class="icon icon-link" aria-hidden="true"></i></span>
+            <div><h1>转换历史</h1><p>最近 7 天，按转换时间排列。</p></div>
+          </div>
+          <button id="refresh-history" class="button button-soft history-refresh" type="button"><i class="icon icon-refresh" aria-hidden="true"></i><span>刷新</span></button>
+        </header>
+      </div>
+      <main class="app-content history-content" id="history-content" aria-label="转换历史记录">
+        <div class="history-error" id="history-error" role="alert" hidden>
+          <i class="icon icon-warning-sign" aria-hidden="true"></i>
+          <p id="history-error-message"></p>
+          <button id="retry-history" class="button button-clear" type="button">重试</button>
+        </div>
+        <p class="history-loading" id="history-loading" role="status">正在读取历史记录…</p>
+        <section class="history-empty glass" id="history-empty" hidden>
+          <i class="icon icon-link" aria-hidden="true"></i>
+          <h2>还没有转换记录</h2>
+          <p>成功转换的链接会保存在这里，7 天后自动清理。</p>
+        </section>
+        <div id="history-list"></div>
+      </main>
+      <footer class="history-footer">
+        <span id="history-page-info" aria-live="polite">最近 7 天</span>
+        <div class="history-pagination">
+          <button id="history-previous" class="pagination-button" type="button" disabled>上一页</button>
+          <button id="history-next" class="pagination-button" type="button" disabled>下一页</button>
+        </div>
+      </footer>
+    </div>
+    <div id="history-toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
